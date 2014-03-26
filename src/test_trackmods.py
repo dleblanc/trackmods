@@ -1,5 +1,6 @@
 from trackmods import *
 
+import pytest
 import tempfile
 
 class FakeDir:
@@ -32,6 +33,9 @@ def test_fake_file_exists():
     assert dir.fileExists("foo.txt") == True
 
 
+# use -m "not integration" to skip integration tests.
+
+@pytest.mark.integration
 def test_real_file_exists():
 
     dirPath = tempfile.mkdtemp(prefix="test-trackmods")
@@ -48,6 +52,7 @@ def test_real_file_exists():
         os.rmdir(dirPath)
 
 
+@pytest.mark.integration
 def test_real_find_subdirs():
     dirPath = tempfile.mkdtemp(prefix="test-trackmods")
     subPath = os.path.join(dirPath, "first")
