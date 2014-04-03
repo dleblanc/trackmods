@@ -70,34 +70,88 @@ def test_real_find_subdirs():
 
 
 def test_get_maven_modules_with_single_maven_sub_module():
-    subDir = FakeDir("/dir/module", files=["pom.xml"])
-    rootDir = FakeDir("/dir", subdirs=[subDir], files=["pom.xml"])
+    subDir = FakeDir("/module", files=["pom.xml"])
+    rootDir = FakeDir("./", subdirs=[subDir], files=["pom.xml"])
 
-    assert get_maven_modules(rootDir) == ["dir/module"]
+    assert get_maven_modules(rootDir) == ["/module"]
 
 def test_get_maven_modules_with_nested_module_doesnt_return_parent():
-    childDir = FakeDir("/dir/parent/child", files=["pom.xml"])
-    parentDir = FakeDir("/dir/parent", files=["pom.xml"], subdirs=[childDir])
-    rootDir = FakeDir("/dir", subdirs=[parentDir], files=["pom.xml"])
+    childDir = FakeDir("/parent/child", files=["pom.xml"])
+    parentDir = FakeDir("/parent", files=["pom.xml"], subdirs=[childDir])
+    rootDir = FakeDir("/", subdirs=[parentDir], files=["pom.xml"])
 
-    assert get_maven_modules(rootDir) == ["dir/parent/child"]
+    assert get_maven_modules(rootDir) == ["/parent/child"]
 
 def test_get_maven_modules_with_two_nested_children():
-    childDir1 = FakeDir("/dir/parent/child1", files=["pom.xml"])
-    childDir2 = FakeDir("/dir/parent/child2", files=["pom.xml"])
-    parentDir = FakeDir("/dir/parent", files=["pom.xml"], subdirs=[childDir1, childDir2])
-    rootDir = FakeDir("/dir", subdirs=[parentDir], files=["pom.xml"])
+    childDir1 = FakeDir("/parent/child1", files=["pom.xml"])
+    childDir2 = FakeDir("/parent/child2", files=["pom.xml"])
+    parentDir = FakeDir("/parent", files=["pom.xml"], subdirs=[childDir1, childDir2])
+    rootDir = FakeDir("/", subdirs=[parentDir], files=["pom.xml"])
 
-    assert get_maven_modules(rootDir) == ["dir/parent/child1", "dir/parent/child2"]
+    assert get_maven_modules(rootDir) == ["/parent/child1", "/parent/child2"]
 
 def test_get_maven_modules_with_nested_non_maven_child_returns_only_parent():
-    childDir = FakeDir("/dir/parent/child")
-    parentDir = FakeDir("/dir/parent", files=["pom.xml"], subdirs=[childDir])
-    rootDir = FakeDir("/dir", subdirs=[parentDir], files=["pom.xml"])
+    childDir = FakeDir("parent/child")
+    parentDir = FakeDir("parent", files=["pom.xml"], subdirs=[childDir])
+    rootDir = FakeDir("/", subdirs=[parentDir], files=["pom.xml"])
 
-    assert get_maven_modules(rootDir) == ["dir/parent"]
+    assert get_maven_modules(rootDir) == ["/parent"]
 
 def test_get_maven_modules_with_non_maven_dir_returns_empty_list():
     rootDir = FakeDir("/dir")
 
     assert get_maven_modules(rootDir) == []
+
+
+
+def test_get_all_files_in_module():
+
+    dirPath = tempfile.mkdtemp(prefix="test-trackmods")
+    pomPath = os.path.join(dirPath, "pom.xml")
+    javaDirPath = os.path.join(dirPath, "src/main/java")
+    javaFilePath = os.path.join(javaDirPath, "foo.java")
+
+    os.makedirs(javaDirPath)
+    open(pomPath, 'a').close()
+    open(javaFilePath, 'a').close()
+    try:
+        all_files = get_all_files_from_module(FakeDir(dirPath))
+
+        assert javaFilePath in all_files
+        assert pomPath in all_files
+    finally:
+        os.remove(pomPath)
+        os.remove(javaFilePath)
+        os.removedirs(javaDirPath)
+
+
+def test_get_hash_for_files():
+
+    dirPath = tempfile.mkdtemp(prefix="test-trackmods")
+    filePath = os.path.join(dirPath, "testfile.txt")
+    fileObj = open(filePath, 'a')
+    fileObj.writelines("lorem ipsum")
+    fileObj.close()
+
+    try:
+        infoDict = info_for_files([filePath])
+        assert len(infoDict) == 1
+        onlyVal = infoDict.itervalues().next()
+        assert onlyVal[0] > 0.0 # modification time
+        assert onlyVal[1] == 11 # st_size
+    finally:
+        os.remove(filePath)
+        os.removedirs(dirPath)
+
+
+
+    # So - for every module, record a set of the file stats of all the relevant files
+
+
+# find all modules
+# for every module:
+#   get a list of all relevant files
+#   get a modification summary of those files
+#   store module -> modification summary
+#
+# in topo-sorted order, run through modules, add dirty ones in order (NOTE: don't strictly need this with maven)
