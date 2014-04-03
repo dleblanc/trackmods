@@ -13,7 +13,8 @@ A solution:
 
 
 Usage:
- ifdirty.py && mvn install -pl `trackmods.py` && clearmods.py
+
+> ifdirty.py && mvn install -pl `trackmods.py` && clearmods.py
 
 This will invoke maven only if there are changes (ifdirty), trackmods returns a comma-separated list of modules to build,
 and clearmods marks all changes as up to date.
@@ -22,4 +23,5 @@ Why Python:
  Super fast startup time, and a good language to write scripts in.
 
 Requirements:
- - Python 2.7
+
+* Python 2.7
