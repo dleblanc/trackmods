@@ -85,24 +85,31 @@ def save_updated_modification_state(rootpath, mod_summary):
     finally:
         db.close()
 
+def get_modified_modules(saved_mod_summary, current_mod_summary):
+
+    mods = []
+
+    # TODO: externalize this to the command line (or a cfg file)
+    excluded_modules = ["./console-brand", "./dist", "./functional-tests"]
+    for module in current_mod_summary.keys():
+        if not module in saved_mod_summary or current_mod_summary[module] != saved_mod_summary[module]:
+            #print "module: " + module + " is modified"
+            if module in excluded_modules:
+                continue
+            mods.append(module)
+
+    return mods
+
+
 if __name__ == "__main__":
     #abspath = os.path.abspath(".")
     rootpath = "."
     modules = get_maven_modules(Dir(rootpath))
 
-    module_modification_summary = {module: info_for_files(get_all_files_from_module(Dir(module))) for module in modules }
-
     saved_mod_summary = load_saved_modules_modification_summary(rootpath)
 
-    modified_modules = []
+    module_modification_summary = {module: info_for_files(get_all_files_from_module(Dir(module))) for module in modules}
 
-    # TODO: externalize this to the command line (or a cfg file)
-    excluded_modules = ["./console-brand", "./dist", "./functional-tests"]
-    for module in modules:
-        if not module in saved_mod_summary or module_modification_summary[module] != saved_mod_summary[module]:
-            #print "module: " + module + " is modified"
-            if module in excluded_modules:
-                continue
-            modified_modules.append(module)
+    modified_modules = get_modified_modules(saved_mod_summary, module_modification_summary)
 
     print string.join(modified_modules, ",")
