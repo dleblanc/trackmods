@@ -1,7 +1,10 @@
+#!/usr/bin/env python
+
 import os
 import os.path
 import anydbm
 import pickle
+import string
 
 def get_maven_modules(dirData):
 
@@ -11,7 +14,7 @@ def get_maven_modules(dirData):
     if isMavenDir(dirData):
         for subDir in dirData.subDirs():
             for subModule in get_maven_modules(subDir):
-                modules.append(dirData.dirName() + "/" + subModule)
+                modules.append(os.path.join(dirData.dirName() + "/" + subModule))
 
         # If no children, this might be the leaf node
         if not modules:
@@ -64,36 +67,42 @@ def info_for_files(files):
 
     return infos
 
-
-if __name__ == "__main__":
-    modules = get_maven_modules(Dir("."))
-
-    module_modification_summary = {}
-    for module in modules:
-        #print module
-
-        # TODO: unify Dir usage here
-        files = get_all_files_from_module(Dir(module))
-        for f in files:
-        #    print "\t" + f
-            pass
-
-        module_modification_summary[module] = info_for_files(files)
-
-
-    db = anydbm.open('./trackmods', 'c')
-    saved_mod_summary = {}
-    for module in modules:
-        if module in db:
-            saved_mod_summary[module] = pickle.loads(db[module])
-
-    for module in modules:
-        if not module in saved_mod_summary or module_modification_summary[module] != saved_mod_summary[module]:
-            print "module: " + module + " is modified"
-
+def load_saved_modules_modification_summary(rootpath):
+    db = anydbm.open(os.path.join(rootpath, 'trackmods'), 'c')
     try:
-        for module in modules:
-            # save it
-            db[module] = pickle.dumps(module_modification_summary[module])
+        saved_mod_summary = {}
+        if rootpath in db:
+            saved_mod_summary = pickle.loads(db[rootpath])
+
+        return saved_mod_summary
     finally:
         db.close()
+
+def save_updated_modification_state(rootpath, mod_summary):
+    db = anydbm.open(os.path.join(rootpath, 'trackmods'), 'c')
+    try:
+        db[rootpath] = pickle.dumps(mod_summary)
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    #abspath = os.path.abspath(".")
+    rootpath = "."
+    modules = get_maven_modules(Dir(rootpath))
+
+    module_modification_summary = {module: info_for_files(get_all_files_from_module(Dir(module))) for module in modules }
+
+    saved_mod_summary = load_saved_modules_modification_summary(rootpath)
+
+    modified_modules = []
+
+    # TODO: externalize this to the command line (or a cfg file)
+    excluded_modules = ["./console-brand", "./dist", "./functional-tests"]
+    for module in modules:
+        if not module in saved_mod_summary or module_modification_summary[module] != saved_mod_summary[module]:
+            #print "module: " + module + " is modified"
+            if module in excluded_modules:
+                continue
+            modified_modules.append(module)
+
+    print string.join(modified_modules, ",")
